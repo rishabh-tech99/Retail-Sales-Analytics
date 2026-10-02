@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Retail Sales Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#f4f6fa;color:#1d2433}
+header{background:#1f3a5f;color:#fff;padding:18px 28px}header h1{margin:0;font-size:22px}header p{margin:4px 0 0;opacity:.8;font-size:13px}
+main{padding:20px 28px;max-width:1200px;margin:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+.card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 4px #0001}
+.kpi b{display:block;font-size:24px;margin-top:4px}.kpi span{font-size:12px;color:#667}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px;margin-top:14px}
+h3{margin:0 0 10px;font-size:15px}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+label{font-size:12px;color:#556}select,input{width:100%;padding:7px;margin-top:3px;box-sizing:border-box}
+button{background:#1f3a5f;color:#fff;border:0;border-radius:6px;padding:10px;cursor:pointer;align-self:end}
+#result{margin-top:12px;font-size:18px;font-weight:600}
+</style></head><body>
+<header><h1>Retail Sales Analytics Dashboard</h1><p>Python · Flask · Pandas · scikit-learn · Chart.js</p></header>
+<main>
+<div class="kpis" id="kpis"></div>
+<div class="grid">
+ <div class="card"><h3>Monthly Sales &amp; Profit</h3><canvas id="c1"></canvas></div>
+ <div class="card"><h3>Sales Forecast (next 6 months)</h3><canvas id="c2"></canvas></div>
+ <div class="card"><h3>Sales by Category</h3><canvas id="c3"></canvas></div>
+ <div class="card"><h3>Sales by Region</h3><canvas id="c4"></canvas></div>
+ <div class="card"><h3>Sales by Product</h3><canvas id="c5"></canvas></div>
+ <div class="card"><h3>Avg Profit per Order vs Discount</h3><canvas id="c6"></canvas></div>
+</div>
+<div class="card" style="margin-top:14px"><h3>Profit Predictor (Random Forest) <small id="mi" style="font-weight:400;color:#667"></small></h3>
+<form id="pf"></form><div id="result"></div></div>
+</main>
+<script>
+const $=id=>document.getElementById(id),get=u=>fetch(u).then(r=>r.json()),COL=['#2f6fed','#f59f00','#2fb344','#d6336c','#7048e8','#15aabf'];
+const chart=(id,type,labels,sets,opt={})=>new Chart($(id),{type,data:{labels,datasets:sets.map((s,i)=>({backgroundColor:COL[i],borderColor:COL[i],...s}))},options:opt});
+(async()=>{
+ const k=await get('/api/kpis');
+ $('kpis').innerHTML=[['Total Sales','$'+k.sales.toLocaleString()],['Total Profit','$'+k.profit.toLocaleString()],['Orders',k.orders.toLocaleString()],['Profit Margin',k.margin+'%'],['Avg Order','$'+k.avg_order]]
+  .map(([a,b])=>`<div class="card kpi"><span>${a}</span><b>${b}</b></div>`).join('');
+ let d=await get('/api/monthly');
+ chart('c1','line',d.labels,[{label:'Sales',data:d.sales,tension:.3},{label:'Profit',data:d.profit,tension:.3}]);
+ d=await get('/api/forecast');
+ chart('c2','line',d.labels,[{label:'Actual',data:d.actual,tension:.3},{label:'Forecast',data:d.forecast,borderDash:[6,4],tension:.3}]);
+ d=await get('/api/by/category');chart('c3','doughnut',d.labels,[{data:d.sales,backgroundColor:COL}]);
+ d=await get('/api/by/region');chart('c4','bar',d.labels,[{label:'Sales',data:d.sales},{label:'Profit',data:d.profit}]);
+ d=await get('/api/by/product');chart('c5','bar',d.labels,[{label:'Sales',data:d.sales}],{indexAxis:'y'});
+ d=await get('/api/discount');chart('c6','bar',d.labels,[{label:'Avg profit ($)',data:d.profit}]);
+ const o=await get('/api/options'),m=await get('/api/model_info');
+ $('mi').textContent=`— R²: ${m.r2}, MAE: $${m.mae}`;
+ const sel=(n,l)=>`<div><label>${l}<select name="${n}">${o[n].map(v=>`<option>${v}</option>`).join('')}</select></label></div>`;
+ $('pf').innerHTML=sel('category','Category')+sel('region','Region')+sel('segment','Segment')+
+  '<div><label>Quantity<input name="quantity" type="number" value="2" min="1"></label></div>'+
+  '<div><label>Unit price<input name="unit_price" type="number" value="300"></label></div>'+
+  '<div><label>Discount (0-0.4)<input name="discount" type="number" step="0.05" value="0.1" min="0" max="0.4"></label></div><button>Predict</button>';
+ $('pf').onsubmit=async e=>{e.preventDefault();
+  const r=await fetch('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(e.target)))}).then(r=>r.json());
+  $('result').textContent='Predicted profit: $'+r.profit;};
+})();
+</script></body></html>
