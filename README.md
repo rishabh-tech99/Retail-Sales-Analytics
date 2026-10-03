@@ -194,11 +194,11 @@ http://127.0.0.1:5000
 * Customer segmentation using **K-Means Clustering**
 * SQLite/MySQL database integration
 * User CSV upload functionality
-* Automated model retraining
+* Automated model retraining.
 * Advanced forecasting models
-* Cloud deployment
-* Authentication and user management
-* Advanced Power BI integration
+* Cloud deployment.
+* Authentication and user management.
+* Advanced Power BI integration.
 
 
 
